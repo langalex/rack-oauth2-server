@@ -48,7 +48,7 @@ end
 
 RUBIES = %w{1.8.7 1.9.2}
 namespace :test do
-  task :all=>["test:sinatra", "test:rails2", "test:rails3"]
+  task :all=>["test:sinatra", "test:rails3"]
   desc "Run all tests against Sinatra"
   task :sinatra do
     sh "rake test FRAMEWORK=sinatra"
@@ -56,10 +56,6 @@ namespace :test do
   desc "Run all tests against Rails"
   task :rails do
     sh "rake test FRAMEWORK=rails"
-  end
-  desc "Run all tests against Rails 2.3.x"
-  task :rails2 do
-    sh "env BUNDLE_GEMFILE=Rails2 rake test FRAMEWORK=rails"
   end
   desc "Run all tests against Rails 3.x"
   task :rails3 do

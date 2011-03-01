@@ -1,3 +1,5 @@
+*This fork uses CouchDB/Couch Potato instead of MongoDB*
+
 = Rack::OAuth2::Server
 
 OAuth 2.0 Authorization Server as a Rack module. Because you don't allow
@@ -14,15 +16,9 @@ The authorization server needs to keep track of clients, authorization
 requests, access grants and access tokens. That could only mean one thing: a
 database.
 
-The current release uses MongoDB[http://www.mongodb.org/]. You're going to need
-a running server and open connection in the form of a +Mongo::DB+ object.
-Because MongoDB is schema-less, there's no need to run migrations.
-
-If MongoDB is not your flavor, you can easily change the models to support a
-different database engine. All the persistence logic is located in
-+lib/rack/oauth2/models+ and kept simple by design. And if you did the work to
-support a different database engine, send us a pull request.
-
+This release uses CouchDB. You're going to need
+a running server and a +CouchPotato::Database+ object.
+Because CouchDB is schema-less, there's no need to run migrations.
 
 === Step 2: Use The Server
 
@@ -33,7 +29,7 @@ when required, but you do need to configure it from within
   Rails::Initializer.run do |config|
     . . .
     config.after_initialize do
-      config.oauth.database = Mongo::Connection.new["my_db"]
+      config.oauth.database = CouchPotato.database
       config.oauth.authenticator = lambda do |username, password|
         user = User.find(username)
         user if user && user.authenticated?(password)
@@ -49,7 +45,7 @@ Rack::OAuth2::Sinatra into your application. For example:
   class MyApp < Sinatra::Base
     register Rack::OAuth2::Sinatra
 
-    oauth.database = Mongo::Connection.new["my_db"]
+    oauth.database = CouchPotato.database
     oauth.scope = %w{read write}
     oauth.authenticator = lambda do |username, password|
       user = User.find(username)

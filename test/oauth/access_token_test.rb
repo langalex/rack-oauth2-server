@@ -103,7 +103,7 @@ class AccessTokenTest < Test::Unit::TestCase
 
       context "revoked HTTP token" do
         setup do
-          Server::AccessToken.from_token(@token).revoke!
+          DATABASE.view(Server::AccessToken.by_token(@token)).first.revoke!
           with_token
           get "/private"
         end

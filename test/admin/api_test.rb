@@ -37,25 +37,25 @@ class AdminApiTest < Test::Unit::TestCase
       Server::Admin.force_ssl = true
       with_scope
     end
-
+  
     context "HTTP request" do
       setup { get "/oauth/admin/api/clients" }
-
+  
       should "redirect to HTTPS" do
         assert_equal 302, last_response.status
         assert_equal "https://example.org/oauth/admin/api/clients", last_response.location
       end
     end
-
+  
     context "HTTPS request" do
       setup { get "https://example.org/oauth/admin/api/clients" }
-
+  
       should "serve request" do
         assert_equal 200, last_response.status
         assert Array === json["list"]
       end
     end
-
+  
     teardown { Server::Admin.force_ssl = false }
   end
 
@@ -67,12 +67,12 @@ class AdminApiTest < Test::Unit::TestCase
       setup { get "/oauth/admin/api/clients" }
       should_fail_authentication
     end
-
+    
     context "without scope" do
       setup { without_scope ; get "/oauth/admin/api/clients" }
       should_forbid_access
     end
-
+    
     context "proper request" do
       setup { with_scope ; get "/oauth/admin/api/clients" }
       should "return OK" do
@@ -95,7 +95,7 @@ class AdminApiTest < Test::Unit::TestCase
         get "/oauth/admin/api/clients"
         @first = json["list"].first
       end
-
+    
       should "provide client identifier" do
         assert_equal client.id.to_s, @first["id"]
       end
@@ -138,7 +138,7 @@ class AdminApiTest < Test::Unit::TestCase
         get "/oauth/admin/api/clients"
         @first = json["list"].first
       end
-
+    
       should "provide revoked timestamp" do
         assert_equal client.revoked.to_i, @first["revoked"]
       end
@@ -148,12 +148,12 @@ class AdminApiTest < Test::Unit::TestCase
       setup do
         tokens = []
         1.upto(10).map do |days|
-          Timecop.travel -days*86400 do
+          Timecop.travel -days*86400 - 10 do # give it another 10s otherwise the test sometimes fails sometimes not
             tokens << Server.token_for("Superman#{days}", client.id)
           end
         end
         # Revoke one token today (within past 7 days), one 10 days ago (beyond)
-        Timecop.travel -7 * 86400 do
+        Timecop.travel -10 * 86400 do
           Server.get_access_token(tokens[0]).revoke!
         end
         Server.get_access_token(tokens[1]).revoke!
@@ -180,15 +180,15 @@ class AdminApiTest < Test::Unit::TestCase
       setup { get "/oauth/admin/api/client/#{client.id}" }
       should_fail_authentication
     end
-
+  
     context "without scope" do
       setup { without_scope ; get "/oauth/admin/api/client/#{client.id}" }
       should_forbid_access
     end
-
+  
     context "with scope" do
       setup { with_scope ; get "/oauth/admin/api/client/#{client.id}" }
-
+  
       should "return OK" do
         assert_equal 200, last_response.status
       end

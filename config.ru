@@ -1,6 +1,7 @@
 $: << File.dirname(__FILE__) + "/lib"
 require "rack/oauth2/server"
-Rack::OAuth2::Server.database = Mongo::Connection.new["test"]
+CouchPotato::Config.validation_framework = :active_model
+Rack::OAuth2::Server.database = CouchPotato::Database.new(CouchRest.database('rack_oauth2_test'))
 
 class Authorize < Sinatra::Base
   register Rack::OAuth2::Sinatra

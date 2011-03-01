@@ -7,16 +7,23 @@ require "timecop"
 require "ap"
 require "json"
 require "logger"
+require 'couch_potato'
 $: << File.dirname(__FILE__) + "/../lib"
 $: << File.expand_path(File.dirname(__FILE__) + "/..")
+
+CouchPotato::Config.validation_framework = :active_model
+
+couchrest_db = CouchRest.database('rack_oauth2_test')
+couchrest_db.delete! rescue nil
+couchrest_db.create!
+DATABASE = CouchPotato::Database.new(couchrest_db)
+
 require "rack/oauth2/server"
 require "rack/oauth2/server/admin"
 
-
 ENV["RACK_ENV"] = "test"
-DATABASE = Mongo::Connection.new["test"]
-FRAMEWORK = ENV["FRAMEWORK"] || "sinatra"
 
+FRAMEWORK = ENV["FRAMEWORK"] || "sinatra"
 
 $logger = Logger.new("test.log")
 $logger.level = Logger::DEBUG
@@ -73,29 +80,10 @@ when "rails"
         ::Rails.configuration.oauth
       end
     end
-
-  else
-    # Rails 2.x
-    RAILS_ROOT = File.dirname(__FILE__) + "/rails2"
-    require "initializer"
-    require "action_controller"
-    require File.dirname(__FILE__) + "/rails2/config/environment"
-    puts "Testing with Rails #{Rails.version}"
-  
-    class Test::Unit::TestCase
-      def app
-        ActionController::Dispatcher.new
-      end
-
-      def config
-        ::Rails.configuration.oauth
-      end
-    end
   end
-
 else
   puts "Unknown framework #{FRAMEWORK}"
-  exit -1
+  exit(-1)
 end
 
 
@@ -105,16 +93,13 @@ class Test::Unit::TestCase
 
   def setup
     Server.database = DATABASE
+    
+    Server.database.send(:database).delete! rescue nil
+    Server.database.send(:database).create!
+    
     Server::Admin.scope = %{read write}
     @client = Server.register(:display_name=>"UberClient", :redirect_uri=>"http://uberclient.dot/callback", :scope=>%w{read write oauth-admin})
   end
 
   attr_reader :client, :end_user
-
-  def teardown
-    Server::Client.collection.drop
-    Server::AuthRequest.collection.drop
-    Server::AccessGrant.collection.drop
-    Server::AccessToken.collection.drop
-  end
 end

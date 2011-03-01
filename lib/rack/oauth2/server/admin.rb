@@ -128,11 +128,14 @@ module Rack
 
         get "/api/clients" do
           content_type "application/json"
-          json = { :list=>Server::Client.all.map { |client| client_as_json(client) },
+          json = { :list=> Server.database.view(Server::Client.by_id).map { |client| client_as_json(client) },
                    :scope=>Server::Utils.normalize_scope(settings.scope),
                    :history=>"#{request.script_name}/api/clients/history",
-                   :tokens=>{ :total=>Server::AccessToken.count, :week=>Server::AccessToken.count(:days=>7),
-                              :revoked=>Server::AccessToken.count(:days=>7, :revoked=>true) } }
+                   :tokens=>{ :total=> Server.database.view(Server::AccessToken.by_id(:reduce => true)),
+                     :week=> Server.database.view(Server::AccessToken.by_created_at(:startkey => seven_days_ago.as_json, :reduce => true)),
+                     :revoked=> Server.database.view(Server::AccessToken.by_revoked(:startkey =>  seven_days_ago.to_i, :reduce =>  true))
+                   }
+          }
           json.to_json
         end
 
@@ -152,35 +155,36 @@ module Rack
 
         get "/api/client/:id" do
           content_type "application/json"
-          client = Server::Client.find(params[:id])
+          client = Server.database.load params[:id]
           json = client_as_json(client, true)
 
           page = [params[:page].to_i, 1].max
           offset = (page - 1) * settings.tokens_per_page
-          total = Server::AccessToken.count(:client_id=>client.id)
-          tokens = Server::AccessToken.for_client(params[:id], offset, settings.tokens_per_page)
+          total = Server.database.view(Server::AccessToken.by_client_id(:key =>  client.id, :reduce =>  true))
+          tokens = Server.database.view(Server::AccessToken.by_client_id(:key =>  params[:id], :skip =>  offset, :limit =>  settings.tokens_per_page))
           json[:tokens] = { :list=>tokens.map { |token| token_as_json(token) } }
           json[:tokens][:total] = total
           json[:tokens][:page] = page
           json[:tokens][:next] = "#{request.script_name}/client/#{params[:id]}?page=#{page + 1}" if total > page * settings.tokens_per_page
           json[:tokens][:previous] = "#{request.script_name}/client/#{params[:id]}?page=#{page - 1}" if page > 1
-          json[:tokens][:total] = Server::AccessToken.count(:client_id=>client.id)
-          json[:tokens][:week] = Server::AccessToken.count(:client_id=>client.id, :days=>7)
-          json[:tokens][:revoked] = Server::AccessToken.count(:client_id=>client.id, :days=>7, :revoked=>true)
+          json[:tokens][:total] = Server.database.view(Server::AccessToken.by_client_id(:key =>  client.id, :reduce =>  true))
+          json[:tokens][:week] = Server.database.view(Server::AccessToken.by_client_id_and_created_at(:startkey => [client.id, seven_days_ago.as_json], :endkey => [client.id, {}], :reduce => true))
+          json[:tokens][:revoked] = Server.database.view(Server::AccessToken.by_client_id_and_revoked(:startkey => [client.id, seven_days_ago.to_i], :endkey => [client.id, {}], :reduce => true))
 
           json.to_json
         end
 
         get "/api/client/:id/history" do
           content_type "application/json"
-          client = Server::Client.find(params[:id])
+          client = Server.database.load params[:id]
           { :data=>Server::AccessToken.historical(:client_id=>client.id) }.to_json
         end
 
         put "/api/client/:id" do
-          client = Server::Client.find(params[:id])
+          client = Server.database.load params[:id]
           begin
-            client.update validate_params(params)
+            client.attributes = validate_params(params)
+            Server.database.save client, false
             redirect "#{request.script_name}/api/client/#{client.id}"
           rescue
             halt 400, $!.message
@@ -188,23 +192,28 @@ module Rack
         end
 
         delete "/api/client/:id" do
-          Server::Client.delete(params[:id])
+          Server.database.destroy params[:id]
           200
         end
 
         post "/api/client/:id/revoke" do
-          client = Server::Client.find(params[:id])
+          client = Server.database.load params[:id]
           client.revoke!
           200
         end
 
         post "/api/token/:token/revoke" do
-          token = Server::AccessToken.from_token(params[:token])
+          token = Server.database.view(Server::AccessToken.by_token(params[:token])).first
           token.revoke!
           200
         end
 
         helpers do
+          
+          def seven_days_ago
+            Time.now - 7 * 60 * 60 * 24
+          end
+          
           def validate_params(params)
             display_name = params[:displayName].to_s.strip
             halt 400, "Missing display name" if display_name.empty?
@@ -232,7 +241,7 @@ module Rack
               :url=>"#{request.script_name}/api/client/#{client.id}",
               :revoke=>"#{request.script_name}/api/client/#{client.id}/revoke",
               :history=>"#{request.script_name}/api/client/#{client.id}/history",
-              :created=>client.created_at, :revoked=>client.revoked }
+              :created=>client.created_at.to_i, :revoked=>client.revoked }
           end
 
           def token_as_json(token)

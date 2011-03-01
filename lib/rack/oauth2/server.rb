@@ -21,7 +21,7 @@ module Rack
         # oauth.authorization)
         # @return [AuthReqeust]
         def get_auth_request(authorization)
-          AuthRequest.find(authorization)
+          database.load authorization
         end
 
         # Returns Client from client identifier.
@@ -29,7 +29,7 @@ module Rack
         # @param [String] client_id Client identifier (e.g. from oauth.client.id)
         # @return [Client]
         def get_client(client_id)
-          Client.find(client_id)
+          database.view(Client.by_id(client_id)).first
         end
 
         # Registers and returns a new Client. Can also be used to update
@@ -66,10 +66,12 @@ module Rack
         def register(args)
           if args[:id] && args[:secret] && (client = get_client(args[:id]))
             fail "Client secret does not match" unless client.secret == args[:secret]
-            client.update args
+            client.attributes = args
           else
-            Client.create(args)
+            client = Client.new args.reverse_merge(:secret => Server.secure_random)
           end
+          database.save client, false
+          client
         end
 
         # Creates and returns a new access grant. Actually, returns only the
@@ -84,7 +86,10 @@ module Rack
         # @return [String] Access grant authorization code
         def access_grant(identity, client_id, scope = nil, expires = nil)
           client = get_client(client_id) or fail "No such client"
-          AccessGrant.create(identity, client, scope || client.scope, nil, expires).code
+          grant = AccessGrant.new(:database => database, :identity => identity, :client_id => client.id,
+            :scope => scope || client.scope, :expires => expires)
+          database.save grant, false
+          grant.code
         end
 
         # Returns AccessToken from token.
@@ -92,7 +97,7 @@ module Rack
         # @param [String] token Access token (e.g. from oauth.access_token)
         # @return [AccessToken]
         def get_access_token(token)
-          AccessToken.from_token(token)
+          database.view(AccessToken.by_token(token)).first
         end
 
         # Returns AccessToken for the specified identity, client application and
@@ -113,7 +118,7 @@ module Rack
         # @param [String] identity Identity, e.g. user ID, account ID
         # @return [Array<AccessToken>]
         def list_access_tokens(identity)
-          AccessToken.from_identity(identity)
+          database.view AccessToken.by_identity(identity)
         end
 
       end
@@ -129,7 +134,7 @@ module Rack
       #   these names.
       # - :authorize_path --  Path for requesting end-user authorization. By
       #   convention defaults to /oauth/authorize.
-      # - :database -- Mongo::DB instance.
+      # - :database -- CouchPotato::Database instance.
       # - :host -- Only check requests sent to this host.
       # - :path -- Only check requests for resources under this path.
       # - :param_authentication -- If true, supports authentication using
@@ -168,74 +173,69 @@ module Rack
         return @app.call(env) if options.host && options.host != request.host
         return @app.call(env) if options.path && request.path.index(options.path) != 0
 
-        begin
-          # Use options.database if specified.
-          org_database, Server.database = Server.database, options.database || Server.database
-          logger = options.logger || env["rack.logger"]
+        database = Server.database
+        logger = options.logger || env["rack.logger"]
 
-          # 3.  Obtaining End-User Authorization
-          # Flow starts here.
-          return request_authorization(request, logger) if request.path == options.authorize_path
-          # 4.  Obtaining an Access Token
-          return respond_with_access_token(request, logger) if request.path == options.access_token_path
+        # 3.  Obtaining End-User Authorization
+        # Flow starts here.
+        return request_authorization(request, logger) if request.path == options.authorize_path
+        # 4.  Obtaining an Access Token
+        return respond_with_access_token(request, logger) if request.path == options.access_token_path
 
-          # 5.  Accessing a Protected Resource
-          if request.authorization
-            # 5.1.1.  The Authorization Request Header Field
-            token = request.credentials if request.oauth?
-          elsif options.param_authentication && !request.GET["oauth_verifier"] # Ignore OAuth 1.0 callbacks
-            # 5.1.2.  URI Query Parameter
-            # 5.1.3.  Form-Encoded Body Parameter
-            token   = request.GET["oauth_token"] || request.POST["oauth_token"]
-            token ||= request.GET['access_token'] || request.POST['access_token']
+        # 5.  Accessing a Protected Resource
+        if request.authorization
+          # 5.1.1.  The Authorization Request Header Field
+          token = request.credentials if request.oauth?
+        elsif options.param_authentication && !request.GET["oauth_verifier"] # Ignore OAuth 1.0 callbacks
+          # 5.1.2.  URI Query Parameter
+          # 5.1.3.  Form-Encoded Body Parameter
+          token   = request.GET["oauth_token"] || request.POST["oauth_token"]
+          token ||= request.GET['access_token'] || request.POST['access_token']
+        end
+
+        if token
+          begin
+            access_token = database.view(AccessToken.by_token(token)).first
+            raise InvalidTokenError if access_token.nil? || access_token.revoked
+            raise ExpiredTokenError if access_token.expires_at && access_token.expires_at <= Time.now.to_i
+            request.env["oauth.access_token"] = token
+
+            request.env["oauth.identity"] = access_token.identity
+            access_token.access!
+            logger.info "RO2S: Authorized #{access_token.identity}" if logger
+          rescue OAuthError=>error
+            # 5.2.  The WWW-Authenticate Response Header Field
+            logger.info "RO2S: HTTP authorization failed #{error.code}" if logger
+            return unauthorized(request, error)
+          rescue =>ex
+            logger.info "RO2S: HTTP authorization failed #{ex.message}" if logger
+            return unauthorized(request)
           end
 
-          if token
-            begin
-              access_token = AccessToken.from_token(token)
-              raise InvalidTokenError if access_token.nil? || access_token.revoked
-              raise ExpiredTokenError if access_token.expires_at && access_token.expires_at <= Time.now.to_i
-              request.env["oauth.access_token"] = token
-
-              request.env["oauth.identity"] = access_token.identity
-              access_token.access!
-              logger.info "RO2S: Authorized #{access_token.identity}" if logger
-            rescue OAuthError=>error
-              # 5.2.  The WWW-Authenticate Response Header Field
-              logger.info "RO2S: HTTP authorization failed #{error.code}" if logger
-              return unauthorized(request, error)
-            rescue =>ex
-              logger.info "RO2S: HTTP authorization failed #{ex.message}" if logger
-              return unauthorized(request)
-            end
-
-            # We expect application to use 403 if request has insufficient scope,
-            # and return appropriate WWW-Authenticate header.
-            response = @app.call(env)
-            if response[0] == 403
-              scope = Utils.normalize_scope(response[1]["oauth.no_scope"])
-              challenge = 'OAuth realm="%s", error="insufficient_scope", scope="%s"' % [(options.realm || request.host), scope.join(" ")]
-              response[1]["WWW-Authenticate"] = challenge
-              return response
-            else
-              return response
-            end
+          # We expect application to use 403 if request has insufficient scope,
+          # and return appropriate WWW-Authenticate header.
+          response = @app.call(env)
+          if response[0] == 403
+            scope = Utils.normalize_scope(response[1]["oauth.no_scope"])
+            challenge = 'OAuth realm="%s", error="insufficient_scope", scope="%s"' % [(options.realm || request.host), scope.join(" ")]
+            response[1]["WWW-Authenticate"] = challenge
+            return response
           else
-            response = @app.call(env)
-            if response[1] && response[1].delete("oauth.no_access")
-              logger.debug "RO2S: Unauthorized request" if logger
-              # OAuth access required.
-              return unauthorized(request)
-            elsif response[1] && response[1]["oauth.authorization"]
-              # 3.  Obtaining End-User Authorization
-              # Flow ends here.
-              return authorization_response(response, logger)
-            else
-              return response
-            end
+            return response
           end
-        ensure
-          Server.database = org_database
+        else
+          response = @app.call(env)
+          if response[1] && response[1].delete("oauth.no_access")
+            logger.debug "RO2S: Unauthorized request" if logger
+            # OAuth access required.
+            return unauthorized(request)
+          elsif response[1] && response[1]["oauth.authorization"]
+            # 3.  Obtaining End-User Authorization
+            # Flow ends here.
+            return authorization_response(response, logger)
+          else
+            return response
+          end
         end
       end
 
@@ -284,14 +284,17 @@ module Rack
             raise InvalidScopeError unless (requested_scope - allowed_scope).empty?
             # Create object to track authorization request and let application
             # handle the rest.
-            auth_request = AuthRequest.create(client, requested_scope, redirect_uri.to_s, response_type, state)
+            
+            auth_request = AuthRequest.new(:client_id => client.id, :scope => requested_scope,
+              :redirect_uri => redirect_uri.to_s, :response_type =>  response_type, :state =>  state)
+            self.class.database.save auth_request, false
             uri = URI.parse(request.url)
             uri.query = "authorization=#{auth_request.id.to_s}"
             return [303, { "Location"=>uri.to_s }, ["You are being redirected"]]
           end
         rescue OAuthError=>error
           logger.error "RO2S: Authorization request error #{error.code}: #{error.message}" if logger
-          params = { :error=>error.code, :error_description=>error.message, :state=>state }
+          params = { :error=>error.code.to_s, :error_description=>error.message, :state=>state }
           if response_type == "token"
             redirect_uri.fragment = Rack::Utils.build_query(params)
           else # response type is code, or invalid
@@ -348,10 +351,12 @@ module Rack
           when "none"
             # 4.1 "none" access grant type (i.e. two-legged OAuth flow)
             requested_scope = request.POST["scope"] ? Utils.normalize_scope(request.POST["scope"]) : client.scope
-            access_token = AccessToken.create_token_for(client, requested_scope)
+            access_token = AccessToken.new(:client_id =>  client.id, :scope =>  requested_scope)
+            self.class.database.save access_token, false
+            access_token
           when "authorization_code"
             # 4.1.1.  Authorization Code
-            grant = AccessGrant.from_code(request.POST["code"])
+            grant = self.class.database.view(AccessGrant.by_code(:key =>  request.POST["code"])).first
             raise InvalidGrantError, "Wrong client" unless grant && client.id == grant.client_id
             unless client.redirect_uri.nil? || client.redirect_uri.to_s.empty?
               raise InvalidGrantError, "Wrong redirect URI" unless grant.redirect_uri == Utils.parse_redirect_uri(request.POST["redirect_uri"]).to_s
@@ -383,7 +388,7 @@ module Rack
           logger.error "RO2S: Access token request error #{error.code}: #{error.message}" if logger
           return unauthorized(request, error) if InvalidClientError === error && request.basic?
           return [400, { "Content-Type"=>"application/json", "Cache-Control"=>"no-store" }, 
-                  [{ :error=>error.code, :error_description=>error.message }.to_json]]
+                  [{ :error=>error.code.to_s, :error_description=>error.message }.to_json]]
         end
       end
 
@@ -405,8 +410,6 @@ module Rack
         end
         raise InvalidClientError if client.revoked
         return client
-      rescue BSON::InvalidObjectId
-        raise InvalidClientError
       end
 
       # Rack redirect response. The argument is typically a URI object.

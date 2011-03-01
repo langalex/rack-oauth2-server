@@ -59,34 +59,34 @@ class AuthorizationTest < Test::Unit::TestCase
       assert_equal 400, last_response.status
     end
   end
-
+  
   context "invalid redirect URI" do
     setup { request_authorization :redirect_uri=>"http:not-valid" }
     should "return status 400" do
       assert_equal 400, last_response.status
     end
   end
-
+  
   context "no client ID" do
     setup { request_authorization :client_id=>nil }
     should_redirect_with_error :invalid_client
   end
-
+  
   context "invalid client ID" do
     setup { request_authorization :client_id=>"foobar" }
     should_redirect_with_error :invalid_client
   end
-
+  
   context "client ID but no such client" do
     setup { request_authorization :client_id=>"4cc7bc483321e814b8000000" }
     should_redirect_with_error :invalid_client
   end
-
+  
   context "mismatched redirect URI" do
     setup { request_authorization :redirect_uri=>"http://uberclient.dot/oz" }
     should_redirect_with_error :redirect_uri_mismatch
   end
-
+  
   context "revoked client" do
     setup do
       client.revoke!
@@ -94,25 +94,25 @@ class AuthorizationTest < Test::Unit::TestCase
     end
     should_redirect_with_error :invalid_client
   end
-
+  
   context "no response type" do
     setup { request_authorization :response_type=>nil }
     should_redirect_with_error :unsupported_response_type
   end
-
+  
   context "unknown response type" do
     setup { request_authorization :response_type=>"foobar" }
     should_redirect_with_error :unsupported_response_type
   end
-
+  
   context "unsupported scope" do
     setup do
       request_authorization :scope=>"read write math"
     end
     should_redirect_with_error :invalid_scope
   end
-
-
+  
+  
   # 3.1.  Authorization Response
   
   context "expecting authorization code" do
@@ -121,10 +121,10 @@ class AuthorizationTest < Test::Unit::TestCase
       request_authorization
     end
     should_ask_user_for_authorization
-
+  
     context "and granted" do
       setup { post "/oauth/grant", :authorization=>authorization }
-
+  
       should "redirect" do
         assert_equal 302, last_response.status
       end
@@ -133,27 +133,27 @@ class AuthorizationTest < Test::Unit::TestCase
         assert_equal "uberclient.dot", uri.host
         assert_equal "/callback", uri.path
       end
-
+  
       context "redirect URL query parameters" do
         setup { @return = Rack::Utils.parse_query(URI.parse(last_response["Location"]).query) }
-
+  
         should "include authorization code" do
           assert_match /[a-f0-9]{32}/i, @return["code"]
         end
-
+  
         should "include original scope" do
           assert_equal "read write", @return["scope"]
         end
-
+  
         should "include state from requet" do
           assert_equal "bring this back", @return["state"]
         end
       end
     end
-
+  
     context "and denied" do
       setup { post "/oauth/deny", :authorization=>authorization }
-
+  
       should "redirect" do
         assert_equal 302, last_response.status
       end
@@ -162,18 +162,18 @@ class AuthorizationTest < Test::Unit::TestCase
         assert_equal "uberclient.dot", uri.host
         assert_equal "/callback", uri.path
       end
-
+  
       context "redirect URL" do
         setup { @return = Rack::Utils.parse_query(URI.parse(last_response["Location"]).query) }
-
+  
         should "not include authorization code" do
           assert !@return["code"]
         end
-
+  
         should "include error code" do
           assert_equal "access_denied", @return["error"]
         end
-
+  
         should "include state from requet" do
           assert_equal "bring this back", @return["state"]
         end
@@ -187,10 +187,11 @@ class AuthorizationTest < Test::Unit::TestCase
       @params[:response_type] = "token"
       request_authorization
     end
+    
     should_ask_user_for_authorization
 
     context "and granted" do
-      setup { post "/oauth/grant", :authorization=>authorization }
+      setup { post "/oauth/grant", :authorization => authorization }
 
       should "redirect" do
         assert_equal 302, last_response.status
@@ -200,18 +201,18 @@ class AuthorizationTest < Test::Unit::TestCase
         assert_equal "uberclient.dot", uri.host
         assert_equal "/callback", uri.path
       end
-
+      
       context "redirect URL fragment identifier" do
         setup { @return = Rack::Utils.parse_query(URI.parse(last_response["Location"]).fragment) }
-
+      
         should "include access token" do
           assert_match /[a-f0-9]{32}/i, @return["access_token"]
         end
-
+      
         should "include original scope" do
           assert_equal "read write", @return["scope"]
         end
-
+      
         should "include state from requet" do
           assert_equal "bring this back", @return["state"]
         end
@@ -220,7 +221,7 @@ class AuthorizationTest < Test::Unit::TestCase
 
     context "and denied" do
       setup { post "/oauth/deny", :authorization=>authorization }
-
+    
       should "redirect" do
         assert_equal 302, last_response.status
       end
@@ -229,18 +230,18 @@ class AuthorizationTest < Test::Unit::TestCase
         assert_equal "uberclient.dot", uri.host
         assert_equal "/callback", uri.path
       end
-
+    
       context "redirect URL" do
         setup { @return = Rack::Utils.parse_query(URI.parse(last_response["Location"]).fragment) }
-
+    
         should "not include authorization code" do
           assert !@return["code"]
         end
-
+    
         should "include error code" do
           assert_equal "access_denied", @return["error"]
         end
-
+    
         should "include state from requet" do
           assert_equal "bring this back", @return["state"]
         end
@@ -256,21 +257,21 @@ class AuthorizationTest < Test::Unit::TestCase
       request_authorization
       get "/oauth/authorize?" + Rack::Utils.build_query(:authorization=>authorization)
     end
-
+  
     should_ask_user_for_authorization
   end
-
+  
   context "with invalid authorization request" do
     setup do
       request_authorization
       get "/oauth/authorize?" + Rack::Utils.build_query(:authorization=>"foobar")
     end
-
+  
     should "return status 400" do
       assert_equal 400, last_response.status
     end
   end
-
+  
   context "with revoked authorization request" do
     setup do
       request_authorization
@@ -278,18 +279,19 @@ class AuthorizationTest < Test::Unit::TestCase
       client.revoke!
       get "/oauth/authorize?" + Rack::Utils.build_query(:authorization=>response["authorization"])
     end
-
+  
     should "return status 400" do
       assert_equal 400, last_response.status
     end
   end
-
-
+  
+  
   # Edge cases
-
+  
   context "unregistered redirect URI" do
     setup do
-      Rack::OAuth2::Server::Client.collection.update({ :_id=>client._id }, { :$set=>{ :redirect_uri=>nil } })
+      client.redirect_uri = nil
+      DATABASE.save client, false
       request_authorization :redirect_uri=>"http://uberclient.dot/oz"
     end
     should_ask_user_for_authorization

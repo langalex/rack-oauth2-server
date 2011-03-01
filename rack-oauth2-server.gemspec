@@ -11,7 +11,6 @@ Gem::Specification.new do |spec|
   spec.post_install_message = "To get started, run the command oauth2-server"
 
   spec.files          = Dir["{bin,lib,rails,test}/**/*", "CHANGELOG", "VERSION", "MIT-LICENSE", "README.rdoc", "Rakefile", "Gemfile", "*.gemspec"]
-  spec.executable     = "oauth2-server"
 
   spec.has_rdoc         = true
   spec.extra_rdoc_files = "README.rdoc", "CHANGELOG"
@@ -21,7 +20,6 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 1.8.7'
   spec.add_dependency "rack", "~>1.1"
-  spec.add_dependency "mongo", "~>1"
-  spec.add_dependency "bson_ext"
+  spec.add_dependency "couch_potato", ">=0.4.0"
   spec.add_dependency "sinatra", "~>1.1"
 end
