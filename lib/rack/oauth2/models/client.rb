@@ -26,7 +26,7 @@ module Rack
         end
         
         def redirect_uri=(_uri)
-          if _uri
+          unless _uri.blank?
             super Server::Utils.parse_redirect_uri(_uri).to_s 
           else
             super nil
