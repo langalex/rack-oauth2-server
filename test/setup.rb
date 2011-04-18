@@ -94,8 +94,8 @@ class Test::Unit::TestCase
   def setup
     Server.database = DATABASE
     
-    Server.database.send(:database).delete! rescue nil
-    Server.database.send(:database).create!
+    Server.database.couchrest_database.delete! rescue nil
+    Server.database.couchrest_database.create!
     
     Server::Admin.scope = %{read write}
     @client = Server.register(:display_name=>"UberClient", :redirect_uri=>"http://uberclient.dot/callback", :scope=>%w{read write oauth-admin})

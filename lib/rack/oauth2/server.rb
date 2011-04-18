@@ -29,7 +29,7 @@ module Rack
         # @param [String] client_id Client identifier (e.g. from oauth.client.id)
         # @return [Client]
         def get_client(client_id)
-          database.view(Client.by_id(client_id)).first
+          database.first(Client.by_id(client_id.to_s))
         end
 
         # Registers and returns a new Client. Can also be used to update
