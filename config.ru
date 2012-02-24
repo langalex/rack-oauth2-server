@@ -1,6 +1,5 @@
 $: << File.dirname(__FILE__) + "/lib"
 require "rack/oauth2/server"
-CouchPotato::Config.validation_framework = :active_model
 Rack::OAuth2::Server.database = CouchPotato::Database.new(CouchRest.database('rack_oauth2_test'))
 
 class Authorize < Sinatra::Base

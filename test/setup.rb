@@ -11,8 +11,6 @@ require 'couch_potato'
 $: << File.dirname(__FILE__) + "/../lib"
 $: << File.expand_path(File.dirname(__FILE__) + "/..")
 
-CouchPotato::Config.validation_framework = :active_model
-
 couchrest_db = CouchRest.database('rack_oauth2_test')
 couchrest_db.delete! rescue nil
 couchrest_db.create!
@@ -42,7 +40,7 @@ when "sinatra", nil
   require "sinatra/base"
   puts "Testing with Sinatra #{Sinatra::VERSION}"
   require File.dirname(__FILE__) + "/sinatra/my_app"
-  
+
   class Test::Unit::TestCase
     def app
       Rack::Builder.new do
@@ -70,7 +68,7 @@ when "rails"
     require "rack/oauth2/server/railtie"
     require File.dirname(__FILE__) + "/rails3/config/environment"
     puts "Testing with Rails #{Rails.version}"
-  
+
     class Test::Unit::TestCase
       def app
         ::Rails.application
@@ -93,10 +91,10 @@ class Test::Unit::TestCase
 
   def setup
     Server.database = DATABASE
-    
+
     Server.database.couchrest_database.delete! rescue nil
     Server.database.couchrest_database.create!
-    
+
     Server::Admin.scope = %{read write}
     @client = Server.register(:display_name=>"UberClient", :redirect_uri=>"http://uberclient.dot/callback", :scope=>%w{read write oauth-admin})
   end
