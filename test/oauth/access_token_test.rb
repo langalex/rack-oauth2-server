@@ -22,7 +22,7 @@ class AccessTokenTest < Test::Unit::TestCase
         assert_equal "OAuth", last_response["WWW-Authenticate"].split.first
       end
       should "respond with realm" do
-        assert_match " realm=\"example.org\"", last_response["WWW-Authenticate"] 
+        assert_match " realm=\"example.org\"", last_response["WWW-Authenticate"]
       end
       if error
         should "respond with error code #{error}" do
@@ -60,6 +60,10 @@ class AccessTokenTest < Test::Unit::TestCase
     header "Authorization", "OAuth #{token}"
   end
 
+  def with_bearer_token(token = @token)
+    header "Authorization", "Bearer #{token}"
+  end
+
 
   # 5.  Accessing a Protected Resource
 
@@ -93,6 +97,14 @@ class AccessTokenTest < Test::Unit::TestCase
         should_return_resource "Shhhh"
       end
 
+      context "valid bearer token" do
+        setup do
+          with_bearer_token
+          get "/private"
+        end
+        should_return_resource "Shhhh"
+      end
+
       context "unknown token" do
         setup do
           with_token "dingdong"
@@ -121,7 +133,7 @@ class AccessTokenTest < Test::Unit::TestCase
     end
 
     # 5.1.2.  URI Query Parameter
-    
+
     context "query parameter" do
       context "default mode" do
         setup { get "/private?oauth_token=#{@token}" }
@@ -142,14 +154,14 @@ class AccessTokenTest < Test::Unit::TestCase
           setup { get "/private?oauth_token=dingdong" }
           should_fail_authentication :invalid_token
         end
-        
+
         teardown do
           config.param_authentication = false
         end
       end
     end
   end
-  
+
   context "POST" do
     context "no authorization" do
       setup { post "/change" }
@@ -220,7 +232,7 @@ class AccessTokenTest < Test::Unit::TestCase
         assert_equal "OAuth", last_response["WWW-Authenticate"].split.first
       end
       should "respond with realm" do
-        assert_match " realm=\"example.org\"", last_response["WWW-Authenticate"] 
+        assert_match " realm=\"example.org\"", last_response["WWW-Authenticate"]
       end
       should "respond with error code insufficient_scope" do
         assert_match " error=\"insufficient_scope\"", last_response["WWW-Authenticate"]

@@ -284,7 +284,7 @@ module Rack
             raise InvalidScopeError unless (requested_scope - allowed_scope).empty?
             # Create object to track authorization request and let application
             # handle the rest.
-            
+
             auth_request = AuthRequest.new(:client_id => client.id, :scope => requested_scope,
               :redirect_uri => redirect_uri.to_s, :response_type =>  response_type, :state =>  state)
             self.class.database.save auth_request, false
@@ -387,7 +387,7 @@ module Rack
         rescue OAuthError=>error
           logger.error "RO2S: Access token request error #{error.code}: #{error.message}" if logger
           return unauthorized(request, error) if InvalidClientError === error && request.basic?
-          return [400, { "Content-Type"=>"application/json", "Cache-Control"=>"no-store" }, 
+          return [400, { "Content-Type"=>"application/json", "Cache-Control"=>"no-store" },
                   [{ :error=>error.code.to_s, :error_description=>error.message }.to_json]]
         end
       end
@@ -441,7 +441,7 @@ module Rack
 
         # True if authentication scheme is OAuth.
         def oauth?
-          authorization[/^oauth/i] if authorization
+          authorization[/^oauth|bearer/i] if authorization
         end
 
         # True if authentication scheme is Basic.
