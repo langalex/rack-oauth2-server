@@ -403,12 +403,14 @@ module Rack
         else
           client_id, client_secret = request.GET.values_at("client_id", "client_secret")
         end
+        raise InvalidClientError.new("No client ID.") if client_id.blank?
         client = self.class.get_client(client_id)
-        raise InvalidClientError if !client
+        raise InvalidClientError.new("Client #{client_id} not found.") if !client
         unless options[:dont_authenticate]
-          raise InvalidClientError unless client.secret == client_secret
+          raise InvalidClientError.new("No secret given for client #{client_id}") if client_secret.blank?
+          raise InvalidClientError.new("Client secret for #{client_id} does not match.") unless client.secret == client_secret
         end
-        raise InvalidClientError if client.revoked
+        raise InvalidClientError.new("Client #{client_id} revoked.") if client.revoked
         return client
       end
 

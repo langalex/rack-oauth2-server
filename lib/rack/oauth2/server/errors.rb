@@ -33,11 +33,11 @@ module Rack
       # authenticate, the client did not include its credentials, provided
       # multiple client credentials, or used unsupported credentials type.
       class InvalidClientError < OAuthError
-        def initialize
-          super :invalid_client, "Client ID and client secret do not match."
+        def initialize(message)
+          super :invalid_client, message
         end
       end
-     
+
       # The provided access grant is invalid, expired, or revoked (e.g.  invalid
       # assertion, expired authorization token, bad end-user password credentials,
       # or mismatching authorization code and redirection URI).

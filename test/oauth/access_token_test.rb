@@ -27,7 +27,7 @@ class AccessTokenTest < Test::Unit::TestCase
       if error
         should "respond with error code #{error}" do
           assert_match " error=\"#{error}\"", last_response["WWW-Authenticate"]
-        end
+      end
       else
         should "not respond with error code" do
           assert !last_response["WWW-Authenticate"]["error="]
