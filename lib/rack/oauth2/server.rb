@@ -190,6 +190,7 @@ module Rack
           # 5.1.2.  URI Query Parameter
           # 5.1.3.  Form-Encoded Body Parameter
           token   = request.GET["oauth_token"] || request.POST["oauth_token"]
+          token ||= request.GET["bearer_token"] || request.POST["bearer_token"]
           token ||= request.GET['access_token'] || request.POST['access_token']
         end
 

@@ -145,15 +145,30 @@ class AccessTokenTest < Test::Unit::TestCase
           config.param_authentication = true
         end
 
-        context "valid token" do
-          setup { get "/private?oauth_token=#{@token}" }
-          should_return_resource "Shhhh"
+        context 'with oauth_token parameter' do
+          context "valid token" do
+            setup { get "/private?oauth_token=#{@token}" }
+            should_return_resource "Shhhh"
+          end
+
+          context "invalid token" do
+            setup { get "/private?oauth_token=dingdong" }
+            should_fail_authentication :invalid_token
+          end
         end
 
-        context "invalid token" do
-          setup { get "/private?oauth_token=dingdong" }
-          should_fail_authentication :invalid_token
+        context 'with bearer_token parameter' do
+          context "valid token" do
+            setup { get "/private?bearer_token=#{@token}" }
+            should_return_resource "Shhhh"
+          end
+
+          context "invalid token" do
+            setup { get "/private?bearer_token=dingdong" }
+            should_fail_authentication :invalid_token
+          end
         end
+
 
         teardown do
           config.param_authentication = false
@@ -200,15 +215,31 @@ class AccessTokenTest < Test::Unit::TestCase
           config.param_authentication = true
         end
 
-        context "valid token" do
-          setup { post "/change", :oauth_token=>@token }
-          should_return_resource "Woot!"
+        context "with oauth_token" do
+          context "valid token" do
+            setup { post "/change", :oauth_token=>@token }
+            should_return_resource "Woot!"
+          end
+
+          context "invalid token" do
+            setup { post "/change", :oauth_token=>"dingdong" }
+            should_fail_authentication :invalid_token
+          end
         end
 
-        context "invalid token" do
-          setup { post "/change", :oauth_token=>"dingdong" }
-          should_fail_authentication :invalid_token
+        context "with bearer_token" do
+          context "valid token" do
+            setup { post "/change", :bearer_token=>@token }
+            should_return_resource "Woot!"
+          end
+
+          context "invalid token" do
+            setup { post "/change", :bearer_token=>"dingdong" }
+            should_fail_authentication :invalid_token
+          end
         end
+
+
 
         teardown do
           config.param_authentication = false
