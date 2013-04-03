@@ -1,15 +1,15 @@
 module Rack
   module OAuth2
-    class Server
+    class AuthServer
 
       # Authorization request. Represents request on behalf of client to access
       # particular scope. Use this to keep state from incoming authorization
       # request to grant/deny redirect.
       class AuthRequest
-        
+
         include CouchPotato::Persistence
         include FixScope, SetRedirectUri
-        
+
         property :client_id
         property :response_type
         property :state
@@ -20,10 +20,10 @@ module Rack
         property :token
         property :redirect_uri
         property :access_token
-        
-        
+
+
         view :by_client_id, :key =>  :client_id
-        
+
         def client
           @client ||= database.load client_id
         end

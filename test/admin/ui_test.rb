@@ -12,7 +12,7 @@ class AdminUiTest < Test::Unit::TestCase
   end
 
   context "force SSL" do
-    setup { Server::Admin.force_ssl = true }
+    setup { AuthServer::Admin.force_ssl = true }
 
     context "HTTP request" do
       setup { get "/oauth/admin" }
@@ -32,7 +32,7 @@ class AdminUiTest < Test::Unit::TestCase
       end
     end
 
-    teardown { Server::Admin.force_ssl = false }
+    teardown { AuthServer::Admin.force_ssl = false }
   end
 
 end

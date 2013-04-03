@@ -1,11 +1,11 @@
 require "sinatra/base"
 require "json"
-require "rack/oauth2/server"
+require "rack/oauth2/auth_server"
 require "rack/oauth2/sinatra"
 
 module Rack
   module OAuth2
-    class Server
+    class AuthServer
       class Admin < ::Sinatra::Base
 
         class << self
@@ -48,7 +48,7 @@ module Rack
           # @return [Object] Rack module
           #
           # @example To include Web admin in Rails 2.x app:
-          #   config.middleware.use Rack::OAuth2::Server::Admin.mount
+          #   config.middleware.use Rack::OAuth2::AuthServer::Admin.mount
           def mount(path = "/oauth/admin")
             mount = Class.new(Mount)
             mount.mount Admin, "/oauth/admin"
@@ -123,17 +123,17 @@ module Rack
 
 
         # -- API --
-       
+
         oauth_required "/api/clients", "/api/client/:id", "/api/client/:id/revoke", "/api/token/:token/revoke", :scope=>"oauth-admin"
 
         get "/api/clients" do
           content_type "application/json"
-          json = { :list=> Server.database.view(Server::Client.by_id).map { |client| client_as_json(client) },
-                   :scope=>Server::Utils.normalize_scope(settings.scope),
+          json = { :list=> AuthServer.database.view(AuthServer::Client.by_id).map { |client| client_as_json(client) },
+                   :scope=>AuthServer::Utils.normalize_scope(settings.scope),
                    :history=>"#{request.script_name}/api/clients/history",
-                   :tokens=>{ :total=> Server.database.view(Server::AccessToken.by_id(:reduce => true)),
-                     :week=> Server.database.view(Server::AccessToken.by_created_at(:startkey => seven_days_ago.as_json, :reduce => true)),
-                     :revoked=> Server.database.view(Server::AccessToken.by_revoked(:startkey =>  seven_days_ago.to_i, :reduce =>  true))
+                   :tokens=>{ :total=> AuthServer.database.view(AuthServer::AccessToken.by_id(:reduce => true)),
+                     :week=> AuthServer.database.view(AuthServer::AccessToken.by_created_at(:startkey => seven_days_ago.as_json, :reduce => true)),
+                     :revoked=> AuthServer.database.view(AuthServer::AccessToken.by_revoked(:startkey =>  seven_days_ago.to_i, :reduce =>  true))
                    }
           }
           json.to_json
@@ -141,12 +141,12 @@ module Rack
 
         get "/api/clients/history" do
           content_type "application/json"
-          { :data=>Server::AccessToken.historical }.to_json
+          { :data=>AuthServer::AccessToken.historical }.to_json
         end
 
         post "/api/clients" do
           begin
-            client = Server::Client.create(validate_params(params))
+            client = AuthServer::Client.create(validate_params(params))
             redirect "#{request.script_name}/api/client/#{client.id}"
           rescue
             halt 400, $!.message
@@ -155,36 +155,36 @@ module Rack
 
         get "/api/client/:id" do
           content_type "application/json"
-          client = Server.database.load params[:id]
+          client = AuthServer.database.load params[:id]
           json = client_as_json(client, true)
 
           page = [params[:page].to_i, 1].max
           offset = (page - 1) * settings.tokens_per_page
-          total = Server.database.view(Server::AccessToken.by_client_id(:key =>  client.id, :reduce =>  true))
-          tokens = Server.database.view(Server::AccessToken.by_client_id(:key =>  params[:id], :skip =>  offset, :limit =>  settings.tokens_per_page))
+          total = AuthServer.database.view(AuthServer::AccessToken.by_client_id(:key =>  client.id, :reduce =>  true))
+          tokens = AuthServer.database.view(AuthServer::AccessToken.by_client_id(:key =>  params[:id], :skip =>  offset, :limit =>  settings.tokens_per_page))
           json[:tokens] = { :list=>tokens.map { |token| token_as_json(token) } }
           json[:tokens][:total] = total
           json[:tokens][:page] = page
           json[:tokens][:next] = "#{request.script_name}/client/#{params[:id]}?page=#{page + 1}" if total > page * settings.tokens_per_page
           json[:tokens][:previous] = "#{request.script_name}/client/#{params[:id]}?page=#{page - 1}" if page > 1
-          json[:tokens][:total] = Server.database.view(Server::AccessToken.by_client_id(:key =>  client.id, :reduce =>  true))
-          json[:tokens][:week] = Server.database.view(Server::AccessToken.by_client_id_and_created_at(:startkey => [client.id, seven_days_ago.as_json], :endkey => [client.id, {}], :reduce => true))
-          json[:tokens][:revoked] = Server.database.view(Server::AccessToken.by_client_id_and_revoked(:startkey => [client.id, seven_days_ago.to_i], :endkey => [client.id, {}], :reduce => true))
+          json[:tokens][:total] = AuthServer.database.view(AuthServer::AccessToken.by_client_id(:key =>  client.id, :reduce =>  true))
+          json[:tokens][:week] = AuthServer.database.view(AuthServer::AccessToken.by_client_id_and_created_at(:startkey => [client.id, seven_days_ago.as_json], :endkey => [client.id, {}], :reduce => true))
+          json[:tokens][:revoked] = AuthServer.database.view(AuthServer::AccessToken.by_client_id_and_revoked(:startkey => [client.id, seven_days_ago.to_i], :endkey => [client.id, {}], :reduce => true))
 
           json.to_json
         end
 
         get "/api/client/:id/history" do
           content_type "application/json"
-          client = Server.database.load params[:id]
-          { :data=>Server::AccessToken.historical(:client_id=>client.id) }.to_json
+          client = AuthServer.database.load params[:id]
+          { :data=>AuthServer::AccessToken.historical(:client_id=>client.id) }.to_json
         end
 
         put "/api/client/:id" do
-          client = Server.database.load params[:id]
+          client = AuthServer.database.load params[:id]
           begin
             client.attributes = validate_params(params)
-            Server.database.save client, false
+            AuthServer.database.save client, false
             redirect "#{request.script_name}/api/client/#{client.id}"
           rescue
             halt 400, $!.message
@@ -192,28 +192,28 @@ module Rack
         end
 
         delete "/api/client/:id" do
-          Server.database.destroy params[:id]
+          AuthServer.database.destroy params[:id]
           200
         end
 
         post "/api/client/:id/revoke" do
-          client = Server.database.load params[:id]
+          client = AuthServer.database.load params[:id]
           client.revoke!
           200
         end
 
         post "/api/token/:token/revoke" do
-          token = Server.database.view(Server::AccessToken.by_token(params[:token])).first
+          token = AuthServer.database.view(AuthServer::AccessToken.by_token(params[:token])).first
           token.revoke!
           200
         end
 
         helpers do
-          
+
           def seven_days_ago
             Time.now - 7 * 60 * 60 * 24
           end
-          
+
           def validate_params(params)
             display_name = params[:displayName].to_s.strip
             halt 400, "Missing display name" if display_name.empty?
@@ -229,7 +229,7 @@ module Rack
               halt 400, "Image URL must be an absolute URL with HTTP/S scheme" unless
                 image_url.absolute? && %{http https}.include?(image_url.scheme)
             end
-            scope = Server::Utils.normalize_scope(params[:scope])
+            scope = AuthServer::Utils.normalize_scope(params[:scope])
             { :display_name=>display_name, :link=>link.to_s, :image_url=>image_url.to_s,
               :redirect_uri=>redirect_uri.to_s, :scope=>scope, :notes=>params[:notes] }
           end

@@ -4,6 +4,7 @@ gemspec
 group :development do
   gem "thin"
   gem "yard"
+  gem 'rake'
 end
 
 group :test do

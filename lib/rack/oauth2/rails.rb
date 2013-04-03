@@ -1,4 +1,4 @@
-require "rack/oauth2/server"
+require "rack/oauth2/auth_server"
 
 module Rack
   module OAuth2
@@ -34,7 +34,7 @@ module Rack
     #
     #     . . .
     #
-    #   protected 
+    #   protected
     #     def current_user
     #       @current_user ||= User.find(oauth.identity) if oauth.authenticated?
     #     end
@@ -51,7 +51,7 @@ module Rack
         #
         # @return [Server::Helper]
         def oauth
-          @oauth ||= Rack::OAuth2::Server::Helper.new(request, response)
+          @oauth ||= Rack::OAuth2::AuthServer::Helper.new(request, response)
         end
 
         # Filter that denies access if the request is not authenticated. If you
@@ -65,7 +65,7 @@ module Rack
 
       # Filter methods available in controller.
       module Filters
-        
+
         # Adds before filter to require authentication on all the listed paths.
         # Use the :scope option if client must also have access to that scope.
         #
@@ -95,7 +95,7 @@ module Rack
         #
         # @return [Hash] Settings
         def oauth
-          @oauth ||= Server::Options.new
+          @oauth ||= AuthServer::Options.new
         end
       end
 

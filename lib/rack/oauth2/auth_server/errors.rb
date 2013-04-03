@@ -1,6 +1,6 @@
 module Rack
   module OAuth2
-    class Server
+    class AuthServer
 
       # Base class for all OAuth errors. These map to error codes in the spec.
       class OAuthError < StandardError

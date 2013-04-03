@@ -1,6 +1,6 @@
 *This fork uses CouchDB/Couch Potato instead of MongoDB*
 
-= Rack::OAuth2::Server
+= Rack::OAuth2::AuthServer
 
 OAuth 2.0 Authorization Server as a Rack module. Because you don't allow
 strangers into your app, and OAuth 2.0 is the new awesome.
@@ -22,7 +22,7 @@ Because CouchDB is schema-less, there's no need to run migrations.
 
 === Step 2: Use The Server
 
-For Rails 2.3/3.0, Rack::OAuth2::Server automatically adds itself as middleware
+For Rails 2.3/3.0, Rack::OAuth2::AuthServer automatically adds itself as middleware
 when required, but you do need to configure it from within
 +config/environment.rb+ (or one of the specific environment files). For example:
 
@@ -55,8 +55,8 @@ Rack::OAuth2::Sinatra into your application. For example:
     . . .
   end
 
-With any other Rack server, you can +use Rack::OAuth2::Server+ and pass your
-own {Rack::OAuth2::Server::Options} object.
+With any other Rack server, you can +use Rack::OAuth2::AuthServer+ and pass your
+own {Rack::OAuth2::AuthServer::Options} object.
 
 The configuration options are:
 
@@ -97,12 +97,12 @@ nil or false. For example:
 
 === Step 3: Let Users Authorize
 
-Authorization requests go to +/oauth/authorize+. Rack::OAuth2::Server
+Authorization requests go to +/oauth/authorize+. Rack::OAuth2::AuthServer
 intercepts these requests and validates the client ID, redirect URI,
 authorization type and scope. If the request fails validation, the user is
 redirected back to the client application with a suitable error code.
 
-If the request passes validation, Rack::OAuth2::Server sets the request header
+If the request passes validation, Rack::OAuth2::AuthServer sets the request header
 +oauth.authorization+ to the authorization handle, and passes control to your
 application. Your application will ask the user to grant or deny the
 authorization request.
@@ -111,12 +111,12 @@ Once granted, your application signals the grant by setting the response header
 +oauth.authorization+ to the authorization handle it got before, and setting
 the response header +oauth.identity+ to the authorized identity. This is
 typicaly the user ID or account ID, but can be anything you want, as long as
-it's a string. Rack::OAuth2::Server intercepts this response and redirects the
+it's a string. Rack::OAuth2::AuthServer intercepts this response and redirects the
 user back to the client application with an authorization code or access token.
 
 To signal that the user denied the authorization requests your application sets
 the response header oauth.authorization as before, and returns the status code
-403 (Forbidden). Rack::OAuth2::Server will then redirect the user back to the
+403 (Forbidden). Rack::OAuth2::AuthServer will then redirect the user back to the
 client application with a suitable error code.
 
 In Rails, the entire flow would look something like this:
@@ -140,7 +140,7 @@ In Rails, the entire flow would look something like this:
   end
 
 Rails actions must render something. The oauth method returns a helper object
-({Rack::OAuth2::Server::Helper}) that cannot render anything, but can set the right
+({Rack::OAuth2::AuthServer::Helper}) that cannot render anything, but can set the right
 response headers and return a status code, which we then pass on to the +head+
 method.
 
@@ -178,7 +178,7 @@ The view would look something like this:
 
 === Step 4: Protect Your Path
 
-Rack::OAuth2::Server intercepts all incoming requests and looks for an
+Rack::OAuth2::AuthServer intercepts all incoming requests and looks for an
 Authorization header that uses OAuth authentication scheme, like so:
 
   Authorization: OAuth e57807eb99f8c29f60a27a75a80fec6e
@@ -187,7 +187,7 @@ It can also support the +oauth_token+ query parameter or form field, if you set
 +param_authentication+ to true. This option is off by default to prevent
 conflict with OAuth 1.0 callback.
 
-If Rack::OAuth2::Server finds a valid access token in the request, it sets the
+If Rack::OAuth2::AuthServer finds a valid access token in the request, it sets the
 request header +oauth.identity+ to the value you supplied during authorization
 (step 3). You can use +oauth.identity+ to resolve the access token back to
 user, account or whatever you put there.
@@ -241,7 +241,7 @@ In Rails, it would look something like this:
     def set_current_user
       @current_user = User.find(oauth.identity) if oauth.authenticated?
     end
-    
+
   end
 
 In Sinatra/Padrino, it would look something like this:
@@ -297,7 +297,7 @@ Programatically, registering a new client is as simple as:
 
   $ ./script/console
   Loading development environment (Rails 2.3.8)
-  > Rack::OAuth2::Server.register(:display_name=>"UberClient",
+  > Rack::OAuth2::AuthServer.register(:display_name=>"UberClient",
      :link=>"http://example.com/",
      :image_url=>"http://farm5.static.flickr.com/4122/4890273282_58f7c345f4.jpg",
      :scope=>%{read write},
@@ -310,7 +310,7 @@ with the same client ID and secret, which are also stored in a configuration
 file. For example, your +db/seed.rb+ may contain:
 
   oauth2 = YAML.load_file(Rails.root + "config/oauth2.yml")
-  Rack::OAuth2::Server.register(id: oauth2["client_id"], secret: oauth2["client_secret"],
+  Rack::OAuth2::AuthServer.register(id: oauth2["client_id"], secret: oauth2["client_secret"],
     display_name: "UberClient", link: "http://example.com",
     redirect_uri: "http://example.com/oauth/callback", scope: oauth2["scope"].split)
 
@@ -326,7 +326,7 @@ I'll let you figure that one for yourself.
 
 == Two-legged OAuth flow
 
-Rack::OAuth2::Server also supports the so-called "two-legged" OAuth flow, which does
+Rack::OAuth2::AuthServer also supports the so-called "two-legged" OAuth flow, which does
 not require the end user authorization process. This is typically used in server to server
 scenarios where no user is involved. To utilize the two-legged flow, send the grant_type of
 "none" along with the client_id and client_secret to the access token path, and a new access
@@ -370,10 +370,10 @@ client ID/secret. For example, for Rails 2.3.x add this to
   Rails::Initializer.run do |config|
     . . .
     config.after_initialize do
-      config.middleware.use Rack::OAuth2::Server::Admin.mount
-      Rack::OAuth2::Server::Admin.set :client_id, "4dca20453e4859cb000007"
-      Rack::OAuth2::Server::Admin.set :client_secret, "981fa734e110496fcf667cbf52fbaf03"
-      Rack::OAuth2::Server::Admin.set :scope, %w{read write}
+      config.middleware.use Rack::OAuth2::AuthServer::Admin.mount
+      Rack::OAuth2::AuthServer::Admin.set :client_id, "4dca20453e4859cb000007"
+      Rack::OAuth2::AuthServer::Admin.set :client_secret, "981fa734e110496fcf667cbf52fbaf03"
+      Rack::OAuth2::AuthServer::Admin.set :scope, %w{read write}
     end
   end
 
@@ -382,27 +382,27 @@ For Rails 3.0.x, add this to you +config/application.rb+:
   module MyApp
     class Application < Rails::Application
       config.after_initialize do
-        Rack::OAuth2::Server::Admin.set :client_id, "4dca20453e4859cb000007"
-        Rack::OAuth2::Server::Admin.set :client_secret, "981fa734e110496fcf667cbf52fbaf03"
-        Rack::OAuth2::Server::Admin.set :scope, %w{read write}
+        Rack::OAuth2::AuthServer::Admin.set :client_id, "4dca20453e4859cb000007"
+        Rack::OAuth2::AuthServer::Admin.set :client_secret, "981fa734e110496fcf667cbf52fbaf03"
+        Rack::OAuth2::AuthServer::Admin.set :scope, %w{read write}
       end
     end
   end
 
 And add the follownig to +config/routes.rb+:
 
-  mount Rack::OAuth2::Server::Admin=>"/oauth/admin"
+  mount Rack::OAuth2::AuthServer::Admin=>"/oauth/admin"
 
 For Sinatra, Padrino and other Rack-based applications, you'll want to mount
 like so (e.g. in +config.ru+):
 
   Rack::Builder.new do
-    map("/oauth/admin") { run Rack::OAuth2::Server::Admin }
+    map("/oauth/admin") { run Rack::OAuth2::AuthServer::Admin }
     map("/") { run MyApp }
   end
-  Rack::OAuth2::Server::Admin.set :client_id, "4dca20453e4859cb000007"
-  Rack::OAuth2::Server::Admin.set :client_secret, "981fa734e110496fcf667cbf52fbaf03"
-  Rack::OAuth2::Server::Admin.set :scope, %w{read write}
+  Rack::OAuth2::AuthServer::Admin.set :client_id, "4dca20453e4859cb000007"
+  Rack::OAuth2::AuthServer::Admin.set :client_secret, "981fa734e110496fcf667cbf52fbaf03"
+  Rack::OAuth2::AuthServer::Admin.set :scope, %w{read write}
 
 Next, open your browser to http://example.com/oauth/admin, or wherever you
 mounted the Web admin.
@@ -421,7 +421,7 @@ You can set the following options:
   development mode).
 - +scope+ -- Common scope shown and added by default to new clients (array of
   names, e.g. ["read", "write"]).
- 
+
 === Web Admin API
 
 The OAuth Web admin is a single-page client application that operates by
@@ -511,17 +511,17 @@ tokens and grants. Available methods include:
 == Mandatory ASCII Diagram
 
 This is briefly what the authorization flow looks like, how the workload is
-split between Rack::OAuth2::Server and your application, and the protocol the
+split between Rack::OAuth2::AuthServer and your application, and the protocol the
 two use to control the authorization flow:
 
-                             Rack::OAuth2::Server
+                             Rack::OAuth2::AuthServer
                 -----------------------    -----------------------
   Client app    | /oauth/authorize    |    | Set request.env     |
   redirect   -> |                     | -> |                     | ->
                 | authenticate client |    | oauth.authorization |
                 -----------------------    -----------------------
 
-                                    Your code 
+                                    Your code
      --------------------     ----------------------    -----------------------
      | Authenticate user |    | Ask user to grant/ |    | Set response        |
   -> |                   | -> | deny client access | -> |                     | ->
@@ -529,9 +529,9 @@ two use to control the authorization flow:
      |                   |    |                    |    | oauth.identity      |
      --------------------     ----------------------    -----------------------
 
-      Rack::OAuth2::Server
-     -----------------------    
-     | Create access grant |    
+      Rack::OAuth2::AuthServer
+     -----------------------
+     | Create access grant |
   -> | or access token for | -> Redirect back
      | oauth.identity      |    to client app
      -----------------------
@@ -541,7 +541,7 @@ two use to control the authorization flow:
 
 === Client
 
-The {Rack::OAuth2::Server::Client} model represents the credentials of a client
+The {Rack::OAuth2::AuthServer::Client} model represents the credentials of a client
 application. There are two pairs: the client identifier and secret, which the
 client uses to identify itself to the authorization server, and the display
 name and URL, which the client uses to identify itself to the end user.
@@ -564,7 +564,7 @@ The authorization process may involve multiple requests, and the application
 must maintain the authorization request details from beginning to end.
 
 To keep the application simple, all the necessary information for a single
-authorization request is stored in the {Rack::OAuth2::Server::AuthRequest}
+authorization request is stored in the {Rack::OAuth2::AuthServer::AuthRequest}
 model. The application only needs to keep track of the authorization request
 identifier.
 
@@ -574,7 +574,7 @@ the identity.
 
 === Access Grant
 
-An access grant ({Rack::OAuth2::Server::AccessGrant}) is a nonce use to
+An access grant ({Rack::OAuth2::AuthServer::AccessGrant}) is a nonce use to
 generate access token. This model keeps track of the nonce (the "authorization
 code") and all the data it needs to create an access token.
 
@@ -585,16 +585,16 @@ on behalf of a given identity. It keeps track of the account identifier
 (supplied by the application), client identifier and scope (both supplied by
 the client).
 
-An {Rack::OAuth2::Server::AccessToken} is created by copying values from an
+An {Rack::OAuth2::AuthServer::AccessToken} is created by copying values from an
 +AuthRequest+ or +AccessGrant+, and remains in effect until revoked. (OAuth 2.0
 access tokens can also expire, but we don't support expiration at the moment)
 
 
 == Credits
 
-Rack::OAuth2::Server was written to provide authorization/authentication for
+Rack::OAuth2::AuthServer was written to provide authorization/authentication for
 the new Flowtown API[http://developer.flowtown.com]. Thanks to
 Flowtown[http://flowtown.com] for making it happen and allowing it to be open
-sourced. 
+sourced.
 
-Rack::OAuth2::Server is available under the MIT license.
+Rack::OAuth2::AuthServer is available under the MIT license.

@@ -1,14 +1,14 @@
 module Rack
   module OAuth2
-    class Server
+    class AuthServer
 
       # The access grant is a nonce, new grant created each time we need it and
       # good for redeeming one access token.
       class AccessGrant
-        
+
         include CouchPotato::Persistence
         include FixScope, SetRedirectUri
-        
+
         property :client_id
         property :expires_at
         property :granted_at
@@ -17,25 +17,25 @@ module Rack
         property :redirect_uri
         property :access_token
         property :revoked
-        
+
         view :by_client_id, :key =>  :client_id
         view :by_code, :key =>  :_id
-        
+
         def code
           id
         end
-        
+
         def client
           @client ||= database.load client_id
         end
-        
+
         before_create :set_expires_at
-        
+
         attr_accessor :expires
         def set_expires_at
           self.expires_at = Time.now.to_i + (expires || 300)
         end
-        
+
         # Authorize access and return new access token.
         #
         # Access grant can only be redeemed once, but client can make multiple

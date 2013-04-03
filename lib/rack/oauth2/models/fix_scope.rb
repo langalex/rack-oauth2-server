@@ -6,11 +6,11 @@ module Rack
           before_create :fix_scope
         end
       end
-  
+
       private
-  
+
       def fix_scope
-        self.scope = Server::Utils.normalize_scope(scope) & client.scope
+        self.scope = AuthServer::Utils.normalize_scope(scope) & client.scope
       end
     end
   end

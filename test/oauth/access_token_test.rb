@@ -115,7 +115,7 @@ class AccessTokenTest < Test::Unit::TestCase
 
       context "revoked HTTP token" do
         setup do
-          DATABASE.view(Server::AccessToken.by_token(@token)).first.revoke!
+          DATABASE.view(AuthServer::AccessToken.by_token(@token)).first.revoke!
           with_token
           get "/private"
         end
@@ -300,7 +300,7 @@ class AccessTokenTest < Test::Unit::TestCase
 
   context "list tokens" do
     setup do
-      @other = Server.token_for("foobar", client.id, "read")
+      @other = AuthServer.token_for("foobar", client.id, "read")
       get "/list_tokens"
     end
 

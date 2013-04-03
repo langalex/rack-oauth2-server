@@ -1,6 +1,6 @@
 module Rack
   module OAuth2
-    class Server
+    class AuthServer
 
       module Utils
         module_function

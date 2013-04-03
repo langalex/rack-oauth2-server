@@ -11,13 +11,24 @@ require 'couch_potato'
 $: << File.dirname(__FILE__) + "/../lib"
 $: << File.expand_path(File.dirname(__FILE__) + "/..")
 
+
+module JSON
+  class << self
+    alias :old_parse :parse
+    def parse(json, args = {})
+      args[:create_additions] = true
+      old_parse(json, args)
+    end
+  end
+end
+
 couchrest_db = CouchRest.database('rack_oauth2_test')
 couchrest_db.delete! rescue nil
 couchrest_db.create!
 DATABASE = CouchPotato::Database.new(couchrest_db)
 
-require "rack/oauth2/server"
-require "rack/oauth2/server/admin"
+require "rack/oauth2/auth_server"
+require "rack/oauth2/auth_server/admin"
 
 ENV["RACK_ENV"] = "test"
 
@@ -25,7 +36,7 @@ FRAMEWORK = ENV["FRAMEWORK"] || "sinatra"
 
 $logger = Logger.new("test.log")
 $logger.level = Logger::DEBUG
-Rack::OAuth2::Server::Admin.configure do |config|
+Rack::OAuth2::AuthServer::Admin.configure do |config|
   config.set :logger, $logger
   config.set :logging, true
   config.set :raise_errors, true
@@ -44,7 +55,7 @@ when "sinatra", nil
   class Test::Unit::TestCase
     def app
       Rack::Builder.new do
-        map("/oauth/admin") { run Server::Admin }
+        map("/oauth/admin") { run AuthServer::Admin }
         map("/") { run MyApp }
       end
     end
@@ -65,7 +76,7 @@ when "rails"
 
   if defined?(Rails::Railtie)
     # Rails 3.x
-    require "rack/oauth2/server/railtie"
+    require "rack/oauth2/auth_server/railtie"
     require File.dirname(__FILE__) + "/rails3/config/environment"
     puts "Testing with Rails #{Rails.version}"
 
@@ -90,13 +101,13 @@ class Test::Unit::TestCase
   include Rack::OAuth2
 
   def setup
-    Server.database = DATABASE
+    AuthServer.database = DATABASE
 
-    Server.database.couchrest_database.delete! rescue nil
-    Server.database.couchrest_database.create!
+    AuthServer.database.couchrest_database.delete! rescue nil
+    AuthServer.database.couchrest_database.create!
 
-    Server::Admin.scope = %{read write}
-    @client = Server.register(:display_name=>"UberClient", :redirect_uri=>"http://uberclient.dot/callback", :scope=>%w{read write oauth-admin})
+    AuthServer::Admin.scope = %{read write}
+    @client = AuthServer.register(:display_name=>"UberClient", :redirect_uri=>"http://uberclient.dot/callback", :scope=>%w{read write oauth-admin})
   end
 
   attr_reader :client, :end_user

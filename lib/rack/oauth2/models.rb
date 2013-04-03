@@ -1,11 +1,11 @@
 require "couch_potato"
 require "openssl"
-require "rack/oauth2/server/errors"
-require "rack/oauth2/server/utils"
+require "rack/oauth2/auth_server/errors"
+require "rack/oauth2/auth_server/utils"
 
 module Rack
   module OAuth2
-    class Server
+    class AuthServer
 
       class << self
         # A CouchPotato::Database object.

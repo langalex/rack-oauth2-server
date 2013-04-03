@@ -25,7 +25,7 @@ class AccessGrantTest < Test::Unit::TestCase
         assert_equal "OAuth", last_response["WWW-Authenticate"].split.first
       end
       should "respond with realm" do
-        assert_match " realm=\"example.org\"", last_response["WWW-Authenticate"] 
+        assert_match " realm=\"example.org\"", last_response["WWW-Authenticate"]
       end
       should "respond with error code #{error}" do
         assert_match " error=\"#{error}\"", last_response["WWW-Authenticate"]
@@ -95,40 +95,40 @@ class AccessGrantTest < Test::Unit::TestCase
 
 
   # 4.  Obtaining an Access Token
-  
+
   context "GET request" do
     setup { get "/oauth/access_token" }
-  
+
     should "respond with status 405 (Method Not Allowed)" do
       assert_equal 405, last_response.status
     end
   end
-  
+
   context "no client ID" do
     setup { request_access_token :client_id=>nil }
     should_respond_with_authentication_error :invalid_client
   end
-  
+
   context "invalid client ID" do
     setup { request_access_token :client_id=>"foobar" }
     should_respond_with_authentication_error :invalid_client
   end
-  
+
   context "client ID but no such client" do
     setup { request_access_token :client_id=>"4cc7bc483321e814b8000000" }
     should_respond_with_authentication_error :invalid_client
   end
-  
+
   context "no client secret" do
     setup { request_access_token :client_secret=>nil }
     should_respond_with_authentication_error :invalid_client
   end
-  
+
   context "wrong client secret" do
     setup { request_access_token :client_secret=>"plain wrong" }
     should_respond_with_authentication_error :invalid_client
   end
-  
+
   context "client revoked" do
     setup do
       client.revoke!
@@ -136,7 +136,7 @@ class AccessGrantTest < Test::Unit::TestCase
     end
     should_respond_with_authentication_error :invalid_client
   end
-  
+
   context "unsupported grant type" do
     setup { request_access_token :grant_type=>"bogus" }
     should_return_error :unsupported_grant_type
@@ -148,45 +148,45 @@ class AccessGrantTest < Test::Unit::TestCase
     setup { request_access_token :code=>nil }
     should_return_error :invalid_grant
   end
-  
+
   context "unknown authorization code" do
     setup { request_access_token :code=>"unknown" }
     should_return_error :invalid_grant
   end
-  
+
   context "authorization code for different client" do
     setup do
-      grant = Server::AccessGrant.new(:identity => "foo bar", :client_id => Server.register(:scope=>%w{read write}).id,
+      grant = AuthServer::AccessGrant.new(:identity => "foo bar", :client_id => AuthServer.register(:scope=>%w{read write}).id,
         :scope => "read write")
       DATABASE.save grant, false
       request_access_token :code=>grant.code
     end
     should_return_error :invalid_grant
   end
-  
+
   context "authorization code revoked" do
     setup do
-      DATABASE.view(Server::AccessGrant.by_code(@code)).first.revoke!
+      DATABASE.view(AuthServer::AccessGrant.by_code(@code)).first.revoke!
       request_access_token
     end
     should_return_error :invalid_grant
   end
-  
+
   context "mistmatched redirect URI" do
     setup { request_access_token :redirect_uri=>"http://uberclient.dot/oz" }
     should_return_error :invalid_grant
   end
-  
+
   context "no redirect URI to match" do
     setup do
-      @client = Server.register(:display_name=>"No rediret", :scope=>"read write")
-      grant = Server::AccessGrant.new(:identity => "foo bar", :client_id => client.id, :scope => "read write")
+      @client = AuthServer.register(:display_name=>"No rediret", :scope=>"read write")
+      grant = AuthServer::AccessGrant.new(:identity => "foo bar", :client_id => client.id, :scope => "read write")
       DATABASE.save grant, false
       request_access_token :code=>grant.code, :redirect_uri=>"http://uberclient.dot/oz"
     end
     should_respond_with_access_token
   end
-  
+
   context "access grant expired" do
     setup do
       Timecop.travel 300 do
@@ -195,7 +195,7 @@ class AccessGrantTest < Test::Unit::TestCase
     end
     should_return_error :invalid_grant
   end
-  
+
   context "access grant spent" do
     setup do
       request_access_token
@@ -209,33 +209,33 @@ class AccessGrantTest < Test::Unit::TestCase
   context "no username" do
     setup { request_with_username_password nil, "more" }
     should_return_error :invalid_grant
-  end  
-  
+  end
+
   context "no password" do
     setup { request_with_username_password nil, "more" }
     should_return_error :invalid_grant
   end
-  
+
   context "not authorized" do
     setup { request_with_username_password "cowbell", "less" }
     should_return_error :invalid_grant
   end
-  
+
   context "no scope specified" do
     setup { request_with_username_password "cowbell", "more" }
     should_respond_with_access_token "oauth-admin read write"
   end
-  
+
   context "given scope" do
     setup { request_with_username_password "cowbell", "more", "read" }
     should_respond_with_access_token "read"
   end
-  
+
   context "unsupported scope" do
     setup { request_with_username_password "cowbell", "more", "read write math" }
     should_return_error :invalid_scope
   end
-  
+
   context "authenticator with 4 parameters" do
     setup do
       @old = config.authenticator
@@ -246,7 +246,7 @@ class AccessGrantTest < Test::Unit::TestCase
       end
       request_with_username_password "cowbell", "more", "read"
     end
-  
+
     should_respond_with_access_token "read"
     should "receive client identifier" do
       assert_equal client.id, @client_id
@@ -254,7 +254,7 @@ class AccessGrantTest < Test::Unit::TestCase
     should "receive scope" do
       assert_equal %w{read}, @scope
     end
-  
+
     teardown { config.authenticator = @old }
   end
 
@@ -265,15 +265,15 @@ class AccessGrantTest < Test::Unit::TestCase
     setup { request_none }
     should_respond_with_access_token "read write"
   end
-  
+
   context "using authorization code" do
     setup { request_access_token }
     should_respond_with_access_token "read write"
   end
-  
+
   context "using username/password" do
     setup { request_with_username_password "cowbell", "more", "read" }
     should_respond_with_access_token "read"
   end
-  
+
 end

@@ -1,6 +1,6 @@
 $: << File.dirname(__FILE__) + "/lib"
-require "rack/oauth2/server"
-Rack::OAuth2::Server.database = CouchPotato::Database.new(CouchRest.database('rack_oauth2_test'))
+require "rack/oauth2/auth_server"
+Rack::OAuth2::AuthServer.database = CouchPotato::Database.new(CouchRest.database('rack_oauth2_test'))
 
 class Authorize < Sinatra::Base
   register Rack::OAuth2::Sinatra
@@ -25,15 +25,15 @@ end
 # Then plug the client ID/secret you get instead of these values, and run:
 #   thin start
 #   open http://localhost:3000/oauth/admin
-Rack::OAuth2::Server::Admin.set :client_id, "4cd9cbc03321e8367d000001"
-Rack::OAuth2::Server::Admin.set :client_secret, "c531191fb208aa34d6b44d6f69e61e97e56abceadb336ebb0f2f5757411a0a19"
-Rack::OAuth2::Server::Admin.set :template_url, "http://localhost:3000/accounts/{id}"
+Rack::OAuth2::AuthServer::Admin.set :client_id, "4cd9cbc03321e8367d000001"
+Rack::OAuth2::AuthServer::Admin.set :client_secret, "c531191fb208aa34d6b44d6f69e61e97e56abceadb336ebb0f2f5757411a0a19"
+Rack::OAuth2::AuthServer::Admin.set :template_url, "http://localhost:3000/accounts/{id}"
 app = Rack::Builder.new do
   map "/" do
     run Authorize.new
   end
   map "/oauth/admin" do
-    run Rack::OAuth2::Server::Admin.new
+    run Rack::OAuth2::AuthServer::Admin.new
   end
 end
 run app.to_app

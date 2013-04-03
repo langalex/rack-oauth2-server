@@ -1,9 +1,9 @@
-require "rack/oauth2/server/admin"
+require "rack/oauth2/auth_server/admin"
 
 module Rack
   module OAuth2
-    class Server
-      
+    class AuthServer
+
       class Practice < ::Sinatra::Base
         register Rack::OAuth2::Sinatra
 

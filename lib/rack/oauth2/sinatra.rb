@@ -1,4 +1,4 @@
-require "rack/oauth2/server"
+require "rack/oauth2/auth_server"
 
 module Rack
   module OAuth2
@@ -56,14 +56,14 @@ module Rack
         #
         # @return [Server::Helper]
         def oauth
-          @oauth ||= Server::Helper.new(request, response)
+          @oauth ||= AuthServer::Helper.new(request, response)
         end
       end
 
       def self.registered(base)
         base.helpers Helpers
-        base.set :oauth, Server::Options.new
-        base.use Server, base.settings.oauth
+        base.set :oauth, AuthServer::Options.new
+        base.use AuthServer, base.settings.oauth
       end
 
     end

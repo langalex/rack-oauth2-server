@@ -1,6 +1,6 @@
 module Rack
   module OAuth2
-    class Server
+    class AuthServer
 
       class Client
 
@@ -21,12 +21,12 @@ module Rack
         before_destroy :destroy_dependent
 
         def scope=(_scope)
-          super Server::Utils.normalize_scope(_scope)
+          super AuthServer::Utils.normalize_scope(_scope)
         end
 
         def redirect_uri=(_uri)
           unless _uri.blank?
-            super Server::Utils.parse_redirect_uri(_uri).to_s
+            super AuthServer::Utils.parse_redirect_uri(_uri).to_s
           else
             super nil
           end
@@ -59,9 +59,9 @@ module Rack
           # Lookup client by ID, display name or URL.
           # def lookup(field)
           #   id = BSON::ObjectId(field.to_s)
-          #   Server.new_instance self, collection.find_one(id)
+          #   AuthServer.new_instance self, collection.find_one(id)
           # rescue BSON::InvalidObjectId
-          #   Server.new_instance self, collection.find_one({ :display_name=>field }) || collection.find_one({ :link=>field })
+          #   AuthServer.new_instance self, collection.find_one({ :display_name=>field }) || collection.find_one({ :link=>field })
           # end
       end
     end

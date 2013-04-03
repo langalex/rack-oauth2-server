@@ -1,6 +1,6 @@
 module Rack
   module OAuth2
-    class Server
+    class AuthServer
 
       # Helper methods that provide access to the OAuth state during the
       # authorization flow, and from authenticated requests. For example:
@@ -42,9 +42,9 @@ module Rack
         # @return [Client, nil] Client if authenticated, or while authorizing
         def client
           if access_token
-            @client ||= Server.get_client(Server.get_access_token(access_token).client_id)
+            @client ||= AuthServer.get_client(AuthServer.get_access_token(access_token).client_id)
           elsif authorization
-            @client ||= Server.get_client(Server.get_auth_request(authorization).client_id)
+            @client ||= AuthServer.get_client(AuthServer.get_auth_request(authorization).client_id)
           end
         end
 
@@ -54,9 +54,9 @@ module Rack
         # @return [Array<String>, nil] Scope names, e.g ["read, "write"]
         def scope
           if access_token
-            @scope ||= Server.get_access_token(access_token).scope
+            @scope ||= AuthServer.get_access_token(access_token).scope
           elsif authorization
-            @scope ||= Server.get_auth_request(authorization).scope
+            @scope ||= AuthServer.get_auth_request(authorization).scope
           end
         end
 
@@ -69,7 +69,7 @@ module Rack
           @response["oauth.no_access"] = "true"
           @response.status = 401
         end
-        
+
         # Rejects the request and returns 403 (Forbidden). You can just
         # return 403, but this also sets the WWW-Authenticate header the right
         # value. Indicates which scope the client needs to make this request.
@@ -132,7 +132,7 @@ module Rack
         # @param [String] identity Identity string
         # @return [Array<AccessToken>]
         def list_access_tokens(identity)
-          Rack::OAuth2::Server.list_access_tokens(identity)
+          Rack::OAuth2::AuthServer.list_access_tokens(identity)
         end
 
         def inspect

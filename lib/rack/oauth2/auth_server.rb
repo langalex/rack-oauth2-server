@@ -1,15 +1,15 @@
 require "rack"
 require "rack/oauth2/models"
-require "rack/oauth2/server/errors"
-require "rack/oauth2/server/utils"
-require "rack/oauth2/server/helper"
+require "rack/oauth2/auth_server/errors"
+require "rack/oauth2/auth_server/utils"
+require "rack/oauth2/auth_server/helper"
 
 
 module Rack
   module OAuth2
 
     # Implements an OAuth 2 Authorization Server, based on http://tools.ietf.org/html/draft-ietf-oauth-v2-10
-    class Server
+    class AuthServer
 
       # Same as gem version number.
       VERSION = IO.read(::File.expand_path("../../../VERSION", ::File.dirname(__FILE__))).strip
@@ -68,7 +68,7 @@ module Rack
             fail "Client secret does not match" unless client.secret == args[:secret]
             client.attributes = args
           else
-            client = Client.new args.reverse_merge(:secret => Server.secure_random)
+            client = Client.new args.reverse_merge(:secret => AuthServer.secure_random)
           end
           database.save client, false
           client
@@ -173,7 +173,7 @@ module Rack
         return @app.call(env) if options.host && options.host != request.host
         return @app.call(env) if options.path && request.path.index(options.path) != 0
 
-        database = Server.database
+        database = AuthServer.database
         logger = options.logger || env["rack.logger"]
 
         # 3.  Obtaining End-User Authorization

@@ -18,12 +18,12 @@ class AdminApiTest < Test::Unit::TestCase
 
 
   def without_scope
-    token = Server.token_for("Superman", client.id, "nobody")
+    token = AuthServer.token_for("Superman", client.id, "nobody")
     header "Authorization", "OAuth #{token}"
   end
 
   def with_scope
-    token = Server.token_for("Superman", client.id, "oauth-admin")
+    token = AuthServer.token_for("Superman", client.id, "oauth-admin")
     header "Authorization", "OAuth #{token}"
   end
 
@@ -34,7 +34,7 @@ class AdminApiTest < Test::Unit::TestCase
 
   context "force SSL" do
     setup do
-      Server::Admin.force_ssl = true
+      AuthServer::Admin.force_ssl = true
       with_scope
     end
 
@@ -56,7 +56,7 @@ class AdminApiTest < Test::Unit::TestCase
       end
     end
 
-    teardown { Server::Admin.force_ssl = false }
+    teardown { AuthServer::Admin.force_ssl = false }
   end
 
 
@@ -149,14 +149,14 @@ class AdminApiTest < Test::Unit::TestCase
         tokens = []
         1.upto(10).map do |days|
           Timecop.travel -days*86400 - 10 do # give it another 10s otherwise the test sometimes fails sometimes not
-            tokens << Server.token_for("Superman#{days}", client.id)
+            tokens << AuthServer.token_for("Superman#{days}", client.id)
           end
         end
         # Revoke one token today (within past 7 days), one 10 days ago (beyond)
         Timecop.travel -10 * 86400 do
-          Server.get_access_token(tokens[0]).revoke!
+          AuthServer.get_access_token(tokens[0]).revoke!
         end
-        Server.get_access_token(tokens[1]).revoke!
+        AuthServer.get_access_token(tokens[1]).revoke!
         with_scope ; get "/oauth/admin/api/clients"
       end
 
