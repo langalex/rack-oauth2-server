@@ -208,8 +208,9 @@ module Rack
             # 5.2.  The WWW-Authenticate Response Header Field
             logger.debug "RO2S: HTTP authorization failed #{error.code}" if logger
             return unauthorized(request, error)
-          rescue =>ex
+          rescue => ex
             logger.debug "RO2S: HTTP authorization failed #{ex.message}" if logger
+            Raven.capture_exception(ex) if defined? Raven
             return unauthorized(request)
           end
 
