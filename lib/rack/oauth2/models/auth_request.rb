@@ -37,20 +37,23 @@ module Rack
           if response_type == "code" # Requested authorization code
             access_grant = AccessGrant.new(:identity =>  identity, :client_id =>  client_id, :scope =>  scope, :redirect_uri =>  redirect_uri)
             database.save access_grant, false
-            self.grant_code = access_grant.code
-            database.save self, false
+            database.save self, false do |a|
+              a.grant_code = access_grant.code
+            end
           else # Requested access token
             access_token = AccessToken.get_token_for(identity, client, scope)
-            self.access_token = access_token.token
-            database.save self, false
+            database.save self, false do |a|
+              a.access_token = access_token.token
+            end
           end
           true
         end
 
         # Deny access.
         def deny!
-          self.authorized_at = Time.now.to_i
-          database.save self, false
+          database.save self, false do |a|
+            a.authorized_at = Time.now.to_i
+          end
         end
       end
 

@@ -33,8 +33,9 @@ module Rack
         end
 
         def revoke!
-          self.revoked = Time.now.to_i
-          database.save self, false
+          database.save self, false do |c|
+            c.revoked = Time.now.to_i
+          end
 
           dependent_objects.each do |object|
             object.revoked = revoked

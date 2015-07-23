@@ -69,15 +69,17 @@ module Rack
         def access!
           today = (Time.now.to_i / 3600) * 3600
           if last_access.nil? || last_access < today
-            self.last_access = today
-            database.save self, false
+            database.save self, false do |a|
+              a.last_access = today
+            end
           end
         end
 
         # Revokes this access token.
         def revoke!
-          self.revoked = Time.now.to_i
-          database.save self, false
+          database.save self, false do |a|
+            a.revoked = Time.now.to_i
+          end
         end
       end
     end

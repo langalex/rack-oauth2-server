@@ -13,4 +13,5 @@ group :test do
   gem "rack-test"
   gem "shoulda"
   gem "timecop"
+  gem 'test-unit'
 end

@@ -46,15 +46,17 @@ module Rack
           raise InvalidGrantError, "You can't use the same access grant twice" if access_token || revoked
           # access_token = database.view(AccessToken.not_revoked_by_identiy_client_id_and_scope([identity, client, scope])).first
           access_token = AccessToken.get_token_for(identity, client, scope)
-          self.access_token = access_token.token
-          self.granted_at = Time.now.to_i
-          database.save self, false
+          database.save self, false do |g|
+            g.access_token = access_token.token
+            g.granted_at = Time.now.to_i
+          end
           access_token
         end
 
         def revoke!
-          self.revoked = Time.now.to_i
-          database.save self, false
+          database.save self, false do |g|
+            g.revoked = Time.now.to_i
+          end
         end
       end
     end
