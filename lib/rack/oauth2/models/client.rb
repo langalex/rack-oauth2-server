@@ -20,16 +20,8 @@ module Rack
 
         before_destroy :destroy_dependent
 
-        def scope=(_scope)
-          super AuthServer::Utils.normalize_scope(_scope)
-        end
-
-        def redirect_uri=(_uri)
-          unless _uri.blank?
-            super AuthServer::Utils.parse_redirect_uri(_uri).to_s
-          else
-            super nil
-          end
+        def scope=(value)
+          super AuthServer::Utils.normalize_scope(value)
         end
 
         def revoke!
