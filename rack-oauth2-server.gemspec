@@ -12,10 +12,6 @@ Gem::Specification.new do |spec|
 
   spec.files          = Dir["{bin,lib,rails,test}/**/*", "CHANGELOG", "VERSION", "MIT-LICENSE", "README.rdoc", "Rakefile", "Gemfile", "*.gemspec"]
 
-  spec.has_rdoc         = true
-  spec.extra_rdoc_files = "README.rdoc", "CHANGELOG"
-  spec.rdoc_options     = "--title", "rack-oauth2-server #{spec.version}", "--main", "README.rdoc",
-                          "--webcvs", "http://github.com/assaf/#{spec.name}"
   spec.license          = "MIT"
 
   spec.required_ruby_version = '>= 1.8.7'
